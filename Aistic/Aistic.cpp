@@ -86,13 +86,15 @@ bool LoadOBJ(const std::string& filename, std::vector<Vertex>& vertices, std::ve
                 if (!normIdxStr.empty()) normIdx = std::stoi(normIdxStr) - 1;
 
                 p.push_back(posIdx);
-                t.push_back(texIdxStr.empty() ? 0 : texIdx); // Default to 0 if missing
-                n.push_back(normIdxStr.empty() ? 0 : normIdx); // Default to 0 if missing
+                t.push_back(texIdxStr.empty() ? UINT32_MAX : texIdx); // Use UINT32_MAX to indicate missing texcoord
+                n.push_back(normIdxStr.empty() ? UINT32_MAX : normIdx); // Use UINT32_MAX to indicate missing normal
             }
 
             if (p.size() == 3) { // Triangle
                 for (int i = 0; i < 3; ++i) {
-                    Vertex vertex = { positions[p[i]], normals[n[i]], texcoords[t[i]] };
+                    DirectX::XMFLOAT2 texcoord = (t[i] == UINT32_MAX) ? DirectX::XMFLOAT2(0.0f, 0.0f) : texcoords[t[i]];
+                    DirectX::XMFLOAT3 normal = (n[i] == UINT32_MAX) ? DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f) : normals[n[i]];
+                    Vertex vertex = { positions[p[i]], normal, texcoord };
                     vertices.push_back(vertex);
                     indices.push_back((uint32_t)indices.size());
                 }
@@ -100,12 +102,16 @@ bool LoadOBJ(const std::string& filename, std::vector<Vertex>& vertices, std::ve
             else if (p.size() == 4) { // Quad
                 // Split quad into two triangles
                 for (int i = 0; i < 3; ++i) {
-                    Vertex vertex = { positions[p[i]], normals[n[i]], texcoords[t[i]] };
+                    DirectX::XMFLOAT2 texcoord = (t[i] == UINT32_MAX) ? DirectX::XMFLOAT2(0.0f, 0.0f) : texcoords[t[i]];
+                    DirectX::XMFLOAT3 normal = (n[i] == UINT32_MAX) ? DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f) : normals[n[i]];
+                    Vertex vertex = { positions[p[i]], normal, texcoord };
                     vertices.push_back(vertex);
                     indices.push_back((uint32_t)indices.size());
                 }
                 for (int i : {0, 2, 3}) {
-                    Vertex vertex = { positions[p[i]], normals[n[i]], texcoords[t[i]] };
+                    DirectX::XMFLOAT2 texcoord = (t[i] == UINT32_MAX) ? DirectX::XMFLOAT2(0.0f, 0.0f) : texcoords[t[i]];
+                    DirectX::XMFLOAT3 normal = (n[i] == UINT32_MAX) ? DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f) : normals[n[i]];
+                    Vertex vertex = { positions[p[i]], normal, texcoord };
                     vertices.push_back(vertex);
                     indices.push_back((uint32_t)indices.size());
                 }
@@ -114,8 +120,7 @@ bool LoadOBJ(const std::string& filename, std::vector<Vertex>& vertices, std::ve
     }
 
     return true;
-}
-// Forward declarations of functions included in this code module:
+}// Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
