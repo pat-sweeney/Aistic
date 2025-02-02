@@ -5,7 +5,10 @@
 #include "Aistic.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include <wrl/client.h>
 #pragma comment(lib, "d3d11.lib")
+
+using Microsoft::WRL::ComPtr;
 
 #define MAX_LOADSTRING 100
 
@@ -15,10 +18,10 @@ WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 // DirectX 11 Variables
-IDXGISwapChain* g_pSwapChain = nullptr;
-ID3D11Device* g_pd3dDevice = nullptr;
-ID3D11DeviceContext* g_pImmediateContext = nullptr;
-ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+ComPtr<IDXGISwapChain> g_pSwapChain;
+ComPtr<ID3D11Device> g_pd3dDevice;
+ComPtr<ID3D11DeviceContext> g_pImmediateContext;
+ComPtr<ID3D11RenderTargetView> g_pRenderTargetView;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -132,22 +135,21 @@ HRESULT InitDirect3D(HWND hWnd)
 
     // Create the device and swap chain
     hr = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
-        D3D11_SDK_VERSION, &sd, &g_pSwapChain, &g_pd3dDevice, nullptr, &g_pImmediateContext);
+        D3D11_SDK_VERSION, &sd, g_pSwapChain.GetAddressOf(), g_pd3dDevice.GetAddressOf(), nullptr, g_pImmediateContext.GetAddressOf());
     if (FAILED(hr))
         return hr;
 
     // Create a render target view
-    ID3D11Texture2D* pBackBuffer = nullptr;
-    hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+    ComPtr<ID3D11Texture2D> pBackBuffer;
+    hr = g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(pBackBuffer.GetAddressOf()));
     if (FAILED(hr))
         return hr;
 
-    hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
-    pBackBuffer->Release();
+    hr = g_pd3dDevice->CreateRenderTargetView(pBackBuffer.Get(), nullptr, g_pRenderTargetView.GetAddressOf());
     if (FAILED(hr))
         return hr;
 
-    g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
+    g_pImmediateContext->OMSetRenderTargets(1, g_pRenderTargetView.GetAddressOf(), nullptr);
 
     // Setup the viewport
     D3D11_VIEWPORT vp;
@@ -165,17 +167,13 @@ HRESULT InitDirect3D(HWND hWnd)
 void CleanupDevice()
 {
     if (g_pImmediateContext) g_pImmediateContext->ClearState();
-    if (g_pRenderTargetView) g_pRenderTargetView->Release();
-    if (g_pSwapChain) g_pSwapChain->Release();
-    if (g_pd3dDevice) g_pd3dDevice->Release();
-    if (g_pImmediateContext) g_pImmediateContext->Release();
 }
 
 void Render()
 {
     // Clear the back buffer
     float ClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f }; // RGBA
-    g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, ClearColor);
+    g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView.Get(), ClearColor);
 
     // Present the information rendered to the back buffer to the front buffer (the screen)
     g_pSwapChain->Present(0, 0);
