@@ -6,6 +6,8 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <wrl/client.h>
+#include <thread>
+#include <atomic>
 #pragma comment(lib, "d3d11.lib")
 
 using Microsoft::WRL::ComPtr;
@@ -22,6 +24,8 @@ ComPtr<IDXGISwapChain> g_pSwapChain;
 ComPtr<ID3D11Device> g_pd3dDevice;
 ComPtr<ID3D11DeviceContext> g_pImmediateContext;
 ComPtr<ID3D11RenderTargetView> g_pRenderTargetView;
+std::thread renderThread;
+std::atomic<bool> running = true;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -30,6 +34,7 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 HRESULT             InitDirect3D(HWND hWnd);
 void                CleanupDevice();
+void                RenderLoop();
 void                Render();
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -53,6 +58,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_AISTIC));
 
+    // Start the render thread
+    renderThread = std::thread(RenderLoop);
+
     MSG msg;
 
     // Main message loop:
@@ -64,6 +72,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             DispatchMessage(&msg);
         }
     }
+
+    // Stop the render thread
+    running = false;
+    if (renderThread.joinable())
+        renderThread.join();
 
     CleanupDevice();
 
@@ -169,6 +182,15 @@ void CleanupDevice()
     if (g_pImmediateContext) g_pImmediateContext->ClearState();
 }
 
+void RenderLoop()
+{
+    while (running)
+    {
+        Render();
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // Approx. 60 FPS
+    }
+}
+
 void Render()
 {
     // Clear the back buffer
@@ -204,7 +226,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-        Render();
         EndPaint(hWnd, &ps);
     }
     break;
